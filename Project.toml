@@ -1,0 +1,7 @@
+name = "OffsetRanges"
+uuid = "39618a87-178b-47b9-8450-54a71dfb59ed"
+authors = ["matthias314"]
+version = "0.1.0"
+
+[compat]
+julia = "1.6"
