@@ -2,20 +2,68 @@ module OffsetArrays
 
 export OffsetVector, OffsetMatrix, OffsetArray, no_offset_view, IdOffsetRange, Origin
 
+using Base: OneTo
+
 using ..OffsetRanges
+using OffsetRanges: argerror, decart
 
 # IdOffsetRange
 
-IdOffsetRange(r::AbstractUnitRange, offset = 0) = OffsetUnitRange(1+offset, first(r)+offset:last(r)+offset)
+IdOffsetRange(r::AbstractUnitRange, offset = 0) =
+    OffsetUnitRange(firstindex(r)+offset:lastindex(r)+offset, first(r)+offset:last(r)+offset)
 
-# Origin currently in OffsetRanges
+# Origin
+
+struct Origin{N}
+    t::NTuple{N,Int}
+end
+
+Origin(ii::Integer...) = Origin(ii)
+Origin(ci::CartesianIndex) = Origin(Tuple(ci))
+Origin(a::AbstractArray) = Origin(map(first, axes(a)))
+
+(o::Origin)(a::AbstractArray) = OffsetArray(a, o)
 
 # OffsetArray
 
 struct OffsetArray{T,N} <: AbstractArray{T,N}
 
-OffsetArray{T,N}(::UndefInitializer, rs::Tuple) where {T,N} = similar(Array{T}, rs...)
+function OffsetArray{T,N}(::UndefInitializer, t::Tuple) where {T,N}
+    t2 = decart((), t...)
+    length(t2) == N || argerror("wrong dimension: $N $t $t2")
+    rs = map(t2) do x
+        if !(x isa Integer)
+            x
+        elseif x >= 0
+            OneTo(x)
+        else
+            argerror("negative array size")
+        end
+    end
+    offsetarray(T, rs...)
+end
 
+function OffsetArray{T}(::UndefInitializer, t::Tuple) where T
+    t2 = decart((), t...)
+    # length(t2) == N || argerror("wrong dimension: $N $t $t2")
+    rs = map(t2) do x
+        if !(x isa Integer)
+            x
+        elseif x >= 0
+            OneTo(x)
+        else
+            argerror("negative array size")
+        end
+    end
+    offsetarray(T, rs...)
+end
+
+function OffsetArray{T,N}(x::T, rs::Tuple) where {T <: Union{Nothing,Missing}, N}
+    @show rs
+    error("stop")
+end
+
+#=
 function OffsetArray{T,N}(x::T, rs::Tuple{Vararg{AbstractUnitRange}}) where {T <: Union{Nothing,Missing}, N}
     b = Array{T,N}(x, map(length, rs))
     offsetarray(b, rs...)
@@ -25,12 +73,29 @@ function OffsetArray{T,N}(x::T, rs::Tuple{Vararg{Integer}}) where {T <: Union{No
     Array{T,N}(x, rs)
 end
 
-function OffsetArray{T,N}(x::T, cis::Tuple{CartesianIndices}) where {T <: Union{Nothing,Missing}, N}
-    OffsetArray{T,N}(x, cis[1].indices)
+function OffsetArray{T,N}(x::T, cis::Tuple{Vararg{CartesianIndices}}) where {T <: Union{Nothing,Missing}, N}
+    @show cis
+    rs1 = map(ci -> ci.indices, cis)
+    @show rs1
+    rs2 = Tuple(Iterators.flatten(rs1))
+    @show rs2
+    OffsetArray{T,N}(x, rs2)
+end
+=#
+
+OA_range(r, n::Integer) = r .+ n   #  first(r)+n:last(r)+n
+OA_range(r, x) = x
+
+function OffsetArray{T,N}(a::AbstractArray, rs::Tuple) where {T,N}
+    rsd = decart((), rs...)
+    length(rsd) == N || argerror("array has dimension $N, but received $rs as new axes")
+    offsetarray(a, map(OA_range, axes(a), rsd)...)
 end
 
-OffsetArray{T,N}(a::AbstractArray, rs::Tuple) where {T,N} = offsetarray(a, rs...)
-# OffsetArray{T,N}(a::AbstractArray, (o,)::Tuple{Origin}) where {T,N} = offsetarray(a, o.t...)
+function OffsetArray{T,N}(a::AbstractArray, (o,)::Tuple{Origin}) where {T,N}
+    t = o.t == (0,) ? ntuple(Returns(0), N) : o.t
+    offsetarray(a, t...)
+end
 
 OffsetArray{T,N}(a, rs...) where {T,N} = OffsetArray{T,N}(a, rs)
 

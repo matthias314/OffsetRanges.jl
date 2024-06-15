@@ -1,6 +1,6 @@
 module OffsetRanges
 
-export OffsetStepRange, OffsetUnitRange, offsetarray, from1, Origin
+export OffsetStepRange, OffsetUnitRange, offsetarray, from1
 
 using Base: OneTo, Fix1
 import Base: show, axes, step, length, step, first, last, getindex, isempty, values, similar
@@ -11,7 +11,7 @@ argerror(s...) = throw(ArgumentError(s...))
 
 # OffsetStepRange, OffsetUnitRange, OffsetRange
 
-struct OffsetStepRange{T,S,P<:AbstractUnitRange{Int},Q<:OrdinalRange{T,S}} <: OrdinalRange{T,S}
+struct OffsetStepRange{T,S,P<:AbstractUnitRange{<:Integer},Q<:OrdinalRange{T,S}} <: OrdinalRange{T,S}
     inds::P
     vals::Q
 end
@@ -21,7 +21,7 @@ function OffsetStepRange(inds::AbstractUnitRange{<:Integer}, start, step)
     OffsetStepRange(inds, start:step:stop)
 end
 
-struct OffsetUnitRange{T,P<:AbstractUnitRange{Int},Q<:AbstractUnitRange{T}} <: AbstractUnitRange{T}
+struct OffsetUnitRange{T,P<:AbstractUnitRange{<:Integer},Q<:AbstractUnitRange{T}} <: AbstractUnitRange{T}
     inds::P
     vals::Q
 end
@@ -37,9 +37,12 @@ const OffsetRange{T} = Union{OffsetStepRange{T},OffsetUnitRange{T}}
 
 (::Type{O})(start::Integer, r::OrdinalRange) where O <: OffsetRange = O(start:start+length(r)-1, r)
 
+(::Type{O})(r::OffsetRange) where O <: OffsetRange = O(r.inds, r.vals)
+
 show(io::IO, r::OffsetRange) = print(io, r.inds => values(r))
 
-axes(r::OffsetRange) = (first(r.inds):last(r.inds),)
+# axes(r::OffsetRange) = (first(r.inds):last(r.inds),)
+axes(r::OffsetRange) = (r.inds,)   # assumes that r.inds is 1-based
 
 values(r::OffsetRange) = r.vals
 
@@ -48,11 +51,6 @@ step(r::OffsetStepRange) = step(values(r))
 first(r::OffsetRange) = first(values(r))
 
 last(r::OffsetRange) = last(values(r))
-
-# import Base: firstindex, lastindex, size
-# firstindex(r::OffsetRange) = first(axes(r, 1))
-# lastindex(r::OffsetRange) = last(axes(r, 1))
-# size(r::OffsetRange) = (length(r),)
 
 length(r::OffsetRange) = length(axes(r, 1))
 
@@ -75,20 +73,6 @@ end
     @inbounds OffsetUnitRange(axes(s, 1), r[first(s)])
 end
 
-# Origin
-
-struct Origin{N}
-    t::NTuple{N,Int}
-end
-
-Origin(ii::Integer...) = Origin(ii)
-Origin(ci::CartesianIndex) = Origin(Tuple(ci))
-Origin(a::AbstractArray) = Origin(map(first, axes(a)))
-
-# Base.:(-)(o::Origin) = Origin(map(-, o.t))
-
-(o::Origin)(a::AbstractArray) = OffsetArray(a, o)
-
 # OffsetArray
 
 function unsafe_fast_subarray(a::SubArray{T,N,P,I}) where {T,N,P,I}
@@ -109,12 +93,13 @@ function oa_range(r, s::AbstractUnitRange{<:Integer})
     OffsetUnitRange(s, r)
 end
 
-oa_range(r, n::Integer) = OffsetUnitRange(first(r)+n:last(r)+n, r)
+oa_range(r, n::Integer) = OffsetUnitRange(n, r)
 oa_range(r, ::Colon) = Colon()
 oa_range(r, ::T) where T = argerror("$T not supported to specify an axis")
 
 decart(t) = t
 decart(t, x, xs...) = decart((t..., x), xs...)
+decart(t, x::CartesianIndex, xs...) = decart((t..., Tuple(x)...), xs...)
 decart(t, x::CartesianIndices, xs...) = decart((t..., x.indices...), xs...)  # TODO: without "indices"?
 
 function offsetarray(a::AbstractArray{T,N}, rs...) where {T,N}
@@ -123,20 +108,27 @@ function offsetarray(a::AbstractArray{T,N}, rs...) where {T,N}
     unsafe_fast_subarray(view(a, map(oa_range, axes(a), rsd)...))
 end
 
-function offsetarray(a::AbstractArray{T,N}, o::Origin) where {T,N}
-    t = o.t == (0,) ? ntuple(Returns(0), N) : o.t
-    length(t) == N || argerror("array has dimension $N, but received $o as new origin")
-    inds = map(OffsetUnitRange, t, axes(a))
-    unsafe_fast_subarray(view(a, inds...))
-end
-
 function offsetarray(::Type{T}, rs::AbstractUnitRange{<:Integer}...) where T
 # returns array with undefined entries
     b = Array{T}(undef, map(length, rs))
     offsetarray(b, rs...)
 end
 
-# similar
+# zeros, ones, trues, falses, similar
+
+for f in [:zeros, :ones]
+    @eval function Base.$f(::Type{T}, t::TupleVararg1{AbstractUnitRange{<:Integer}}) where T
+        b = $f(T, map(length, t))
+        offsetarray(b, t...)
+    end
+end
+
+for f in [:falses, :trues]
+    @eval function Base.$f(t::TupleVararg1{AbstractUnitRange{<:Integer}})
+        b = $f(map(length, t))
+        offsetarray(b, t...)
+    end
+end
 
 function similar(a::AbstractArray, ::Type{T}, t::TupleVararg1{AbstractUnitRange{<:Integer}}) where T
     b = similar(a, T, map(length, t))
@@ -152,7 +144,7 @@ end
 # from1
 
 from1(a::AbstractArray) = no_offset(a, axes(a)...)
-from1(r::OffsetRange) = from1(values(r))
+from1(r::OffsetRange) = from1(values(r))   # or just values(r) ?
 
 no_offset(a, ::OneTo...) = a
 no_offset(a, rs...) =  view(a, map(no_range, rs)...)
