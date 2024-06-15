@@ -2,7 +2,7 @@ module OffsetRanges
 
 export OffsetStepRange, OffsetUnitRange, offsetarray, from1
 
-using Base: OneTo
+using Base: OneTo, Slice
 import Base: show, axes, step, length, step, first, last, getindex, isempty, values,
     similar, fill
 
@@ -76,25 +76,13 @@ end
 
 # OffsetArray
 
-function unsafe_fast_subarray(a::SubArray{T,N,P,I}) where {T,N,P,I}
-# force fast linear indexing if supported by parent
-    if IndexStyle(parent(a)) isa IndexLinear
-        fs = ntuple(Fix1(getfield, a), fieldcount(SubArray))
-        SubArray{T,N,P,I,true}(fs...)
-    else
-        a
-    end
-end
-
-unsafe_fast_subarray(a::AbstractArray) = a
-
 function oa_range(r, s::AbstractUnitRange{<:Integer})
     length(r) == length(s) || argerror("existing axis $r and new range $s have different lengths")
     # r isa OneTo && s isa OneTo ? Colon() : OffsetUnitRange(s, r)
-    OffsetUnitRange(s, r)
+    Slice(OffsetUnitRange(s, r))
 end
 
-oa_range(r, n::Integer) = OffsetUnitRange(n, r)
+oa_range(r, n::Integer) = Slice(OffsetUnitRange(n, r))
 oa_range(r, ::Colon) = Colon()
 oa_range(r, ::T) where T = argerror("$T not supported to specify an axis")
 
@@ -106,7 +94,7 @@ decart(t, x::CartesianIndices, xs...) = decart((t..., x.indices...), xs...)  # T
 function offsetarray(a::AbstractArray{T,N}, rs...) where {T,N}
     rsd = decart((), rs...)
     length(rsd) == N || argerror("array has dimension $N, but received $rs as new axes")
-    unsafe_fast_subarray(view(a, map(oa_range, axes(a), rsd)...))
+    view(a, map(oa_range, axes(a), rsd)...)
 end
 
 function offsetarray(::Type{T}, rs::AbstractUnitRange{<:Integer}...) where T
