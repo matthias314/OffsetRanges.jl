@@ -5,6 +5,11 @@
 > `add https://github.com/matthias314/OffsetRanges.jl` from the Julia package manager, or
 > `add https://github.com/matthias314/OffsetRanges.jl#branch` for a specific branch.
 
+> [!IMPORTANT]
+> This branch uses `Base.Slice` from Julia with offset ranges.
+> With current Julia versions this does not work as expected. One needs the patch
+> [matthias314/julia#m3/slice](https://github.com/matthias314/julia#m3/slice).
+
 This package provides the ranges `OffsetUnitRange` and `OffsetStepRange`
 that are not 1-based, unlike their counterparts `UnitRange` and `StepRange`.
 Via `view`, this may give a lightweight alternative to
