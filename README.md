@@ -12,7 +12,7 @@ Via `view`, this may give a lightweight alternative to
 see `offsetarray` below.
 (As of this writing, OffsetArrays.jl has 1395 lines including docstrings,
 while OffsetRanges.jl has 159 lines for offset ranges and `offsetarray`
-plus 117 lines for OffsetArray.jl emulation. Docstrings as missing so far.)
+plus 97 lines for OffsetArray.jl emulation. Docstrings as missing so far.)
 
 See `Base.IdentityUnitRange` and
 [IdentityRanges.jl](https://github.com/JuliaArrays/IdentityRanges.jl)

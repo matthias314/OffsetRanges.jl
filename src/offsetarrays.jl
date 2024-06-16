@@ -63,26 +63,6 @@ function OffsetArray{T,N}(x::T, rs::Tuple) where {T <: Union{Nothing,Missing}, N
     error("stop")
 end
 
-#=
-function OffsetArray{T,N}(x::T, rs::Tuple{Vararg{AbstractUnitRange}}) where {T <: Union{Nothing,Missing}, N}
-    b = Array{T,N}(x, map(length, rs))
-    offsetarray(b, rs...)
-end
-
-function OffsetArray{T,N}(x::T, rs::Tuple{Vararg{Integer}}) where {T <: Union{Nothing,Missing}, N}
-    Array{T,N}(x, rs)
-end
-
-function OffsetArray{T,N}(x::T, cis::Tuple{Vararg{CartesianIndices}}) where {T <: Union{Nothing,Missing}, N}
-    @show cis
-    rs1 = map(ci -> ci.indices, cis)
-    @show rs1
-    rs2 = Tuple(Iterators.flatten(rs1))
-    @show rs2
-    OffsetArray{T,N}(x, rs2)
-end
-=#
-
 OA_range(r, n::Integer) = r .+ n   #  first(r)+n:last(r)+n
 OA_range(r, x) = x
 
