@@ -2,8 +2,9 @@ module OffsetRanges
 
 export OffsetStepRange, OffsetUnitRange, offsetarray, from1
 
-using Base: OneTo, Fix1
-import Base: show, axes, step, length, step, first, last, getindex, isempty, values, similar
+using Base: OneTo
+import Base: show, axes, step, length, step, first, last, getindex, isempty, values,
+    similar, fill
 
 const TupleVararg1{T} = Tuple{T, Vararg{T}}
 
@@ -114,7 +115,7 @@ function offsetarray(::Type{T}, rs::AbstractUnitRange{<:Integer}...) where T
     offsetarray(b, rs...)
 end
 
-# zeros, ones, trues, falses, similar
+# zeros, ones, trues, falses, similar, fill
 
 for f in [:zeros, :ones]
     @eval function Base.$f(::Type{T}, t::TupleVararg1{AbstractUnitRange{<:Integer}}) where T
@@ -138,6 +139,11 @@ end
 function similar(::Type{A}, t::TupleVararg1{AbstractUnitRange{<:Integer}}) where A <: AbstractArray
 # needed for broadcasting
     b = similar(A, map(length, t))
+    offsetarray(b, t...)
+end
+
+function fill(x, t::TupleVararg1{AbstractUnitRange{<:Integer}})
+    b = fill(x, map(length, t))
     offsetarray(b, t...)
 end
 
