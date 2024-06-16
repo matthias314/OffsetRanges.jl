@@ -1,7 +1,7 @@
 # OffsetRanges.jl
 
 > [!NOTE]
-> This package is under construction. Since it is not registered, it must be installed via
+> This package is under construction. Since it is not registered, it must be installed with
 > `add https://github.com/matthias314/OffsetRanges.jl` from the Julia package manager, or
 > `add https://github.com/matthias314/OffsetRanges.jl#branch` for a specific branch.
 
@@ -12,7 +12,7 @@ Via `view`, this may give a lightweight alternative to
 see `offsetarray` below.
 (As of this writing, OffsetArrays.jl has 1395 lines including docstrings,
 while OffsetRanges.jl has 159 lines for offset ranges and `offsetarray`
-plus 97 lines for OffsetArray.jl emulation. Docstrings as missing so far.)
+plus 97 lines for OffsetArray.jl emulation. Docstrings are missing so far.)
 
 See `Base.IdentityUnitRange` and
 [IdentityRanges.jl](https://github.com/JuliaArrays/IdentityRanges.jl)
@@ -85,12 +85,12 @@ julia> r[s]
 ## `offsetarray`
 
 ```
-offsetarray(a::AbstractArray, rs...)
-offsetarray(::Type{T}, rs...) where T
+offsetarray(a::AbstractArray, axes...)
+offsetarray(::Type{T}, axes...) where T
 ```
 This changes the axes of the array `a` to new unit ranges. An integer or `CartesianIndex` specifies
 the start of the corresponding range. A `CartesianIndices` argument specifies a sequence of ranges.
-These argument types can be mixed.
+A colon `:` represents an unchanged axis. These argument types can be mixed.
 ```
 julia> a = [1 2 3; 4 5 6];
 
@@ -115,14 +115,43 @@ julia> offsetarray(a, CartesianIndex(2, -1):CartesianIndex(3, 1))
  4  5  6
 ```
 
-If the first argument is a type, then an array with the specified unit ranges as axes and undefined
-values is returned.
+If the first argument is a type, then an array with this element type, the specified unit ranges
+as axes and undefined values is returned.
 ```
 julia> offsetarray(Int8, 2:3, -1:1)
 2×3 view(::Matrix{Int8}, 2:3 => Base.OneTo(2), -1:1 => Base.OneTo(3)) with eltype Int8 with indices 2:3×-1:1:
  -96    7  -54
  -93  102  127
 ```
+
+### `similar` and `fill`
+
+The funtions `similar` and `fill` work with offset arrays and accept ranges as arguments:
+```
+julia> a = Int8[1 2 3; 4 5 6];
+
+julia> b = offsetarray(a, 2, 3)
+2×3 view(::Matrix{Int8}, 2:3 => Base.OneTo(2), 3:5 => Base.OneTo(3)) with eltype Int8 with indices 2:3×3:5:
+ 1  2  3
+ 4  5  6
+
+julia> similar(b)
+2×3 view(::Matrix{Int8}, 2:3 => Base.OneTo(2), 3:5 => Base.OneTo(3)) with eltype Int8 with indices 2:3×3:5:
+ 80   80  103
+ 47  107   68
+
+julia> similar(b, 4:5, 6:7)
+2×2 view(::Matrix{Int8}, 4:5 => Base.OneTo(2), 6:7 => Base.OneTo(2)) with eltype Int8 with indices 4:5×6:7:
+ 0    0
+ 8  -76
+
+julia> fill(2, 8:9, -3:-1)
+2×3 view(::Matrix{Int64}, 8:9 => Base.OneTo(2), -3:-1 => Base.OneTo(3)) with eltype Int64 with indices 8:9×-3:-1:
+ 2  2  2
+ 2  2  2
+```
+
+### `from1`
 
 ```
 from1(a::AbstractArray)
@@ -145,13 +174,13 @@ julia> from1(b)
 The module `OffsetRanges.OffsetArrays` provides functions and types to emulate
 [OffsetArrays.jl](https://github.com/JuliaArrays/OffsetArrays.jl).
 It defines the types `OffsetVector`, `OffsetMatrix`, `OffsetArray`, `Origin` and `IdOffSetRange`
-as well as the function `no_offset_view`. The values `undef` as first argument to `OffsetArray`
+as well as the function `no_offset_view`. The value `undef` as first argument to `OffsetArray`
 and friends is supported. Note that these types only act as constructors. The arrays created
 by them are views.
 
 For the examples from the `OffsetArray` docstring one gets:
 ```
-julia> using OffsetRanges.OffsetArrays
+julia> using OffsetRanges.OffsetArrays   # "using OffsetRanges" not needed
 
 julia> A = OffsetArray(reshape(1:6, 2, 3), -1, -2)
 2×3 view(reshape(::UnitRange{Int64}, 2, 3), :, :) with eltype Int64 with indices 0:1×-1:1:
@@ -193,7 +222,7 @@ julia> OffsetArray(a, OffsetArrays.Origin(0))
 
 ## Known issues
 
-- Offset ranges made with this package are sometimes as fast as `OffsetArray`
+- Offset arrays made with this package are sometimes as fast as `OffsetArray`
   and sometimes slower by a factor of 1.7 (for example for adding two arrays). This seems to be
   somehow due to how broadcasting is implemented. Adding two offset arrays via a `for` loop is as
   fast as for `OffsetArray`.
@@ -201,8 +230,12 @@ julia> OffsetArray(a, OffsetArrays.Origin(0))
 - Arithmetic operations on ranges currently drop the offset.
   (This also affects `OffsetArrays.IdOffsetRange`.)
 
-- When comparing ranges, the offset is currenly not taken into account.
-  (This also affects `OffsetArrays.IdOffsetRange`.) This should probably be fixed within Julia itself.
+- When comparing ranges, the offset is currently not taken into account.
+  (This also affects `OffsetArrays.IdOffsetRange`.) This should probably be fixed within Julia itself,
+  see [JuliaLang/julia#54825](https://github.com/JuliaLang/julia/pull/54825).
 
-- 1-element offset arrays behave strangely during broadcasting.
+- 1-element offset views with offset axes behave strangely during broadcasting.
   See [JuliaLang/julia#30950](https://github.com/JuliaLang/julia/pull/30950).
+
+- The (undocumented) methods `OffsetArray(missing, axes...)` and `OffsetArray(nothing, axes...)`
+  are not supported. See `fill` above for an alternative.
