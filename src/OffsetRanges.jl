@@ -149,14 +149,14 @@ end
 
 # from1
 
-from1(a::AbstractArray) = no_offset(a, axes(a)...)
+from1(a::AbstractArray) = _from1(a, axes(a)...)
 from1(r::OffsetRange) = from1(values(r))   # or just values(r) ?
 
-no_offset(a, ::OneTo...) = a
-no_offset(a, rs...) =  view(a, map(no_range, rs)...)
+_from1(a, ::OneTo...) = a
+_from1(a, rs...) =  offsetarray(a, map(range1, rs)...)
 
-no_range(r::OneTo) = r
-no_range(r::AbstractUnitRange) = OffsetUnitRange(OneTo(length(r)), r)
+range1(r::OneTo) = Colon()
+range1(r::AbstractUnitRange) = OffsetUnitRange(OneTo(length(r)), r)
 
 # OffsetArrays
 
