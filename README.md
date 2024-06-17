@@ -180,7 +180,7 @@ by them are views.
 
 For the examples from the `OffsetArray` docstring one gets:
 ```
-julia> using OffsetRanges.OffsetArrays
+julia> using OffsetRanges.OffsetArrays   # works without previous "using OffsetRanges"
 
 julia> A = OffsetArray(reshape(1:6, 2, 3), -1, -2)
 2×3 view(reshape(::UnitRange{Int64}, 2, 3), :, :) with eltype Int64 with indices 0:1×-1:1:
@@ -238,4 +238,4 @@ julia> OffsetArray(a, OffsetArrays.Origin(0))
   See [JuliaLang/julia#30950](https://github.com/JuliaLang/julia/pull/30950).
 
 - The (undocumented) methods `OffsetArray(missing, axes...)` and `OffsetArray(nothing, axes...)`
-  are not supported (but `OffsetArray{T,N}(undef, axes...)` is).
+  are not supported. See `fill` above for an alternative.
