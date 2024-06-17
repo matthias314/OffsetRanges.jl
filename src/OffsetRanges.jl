@@ -2,7 +2,7 @@ module OffsetRanges
 
 export OffsetStepRange, OffsetUnitRange, offsetarray, from1
 
-using Base: OneTo
+using Base: Fix1, OneTo
 import Base: show, axes, step, length, step, first, last, getindex, isempty, values,
     similar, fill
 
