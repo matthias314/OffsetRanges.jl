@@ -17,9 +17,11 @@ struct OffsetStepRange{T,S,P<:AbstractUnitRange{<:Integer},Q<:OrdinalRange{T,S}}
     vals::Q
 end
 
+_OffsetStepRange(inds::AbstractUnitRange, vals::OrdinalRange) = OffsetStepRange(values(inds), values(vals))
+
 function OffsetStepRange(inds::AbstractUnitRange{<:Integer}, start, step)
     stop = start+step*(length(inds)-1)
-    OffsetStepRange(inds, start:step:stop)
+    _OffsetStepRange(inds, start:step:stop)
 end
 
 struct OffsetUnitRange{T,P<:AbstractUnitRange{<:Integer},Q<:AbstractUnitRange{T}} <: AbstractUnitRange{T}
@@ -27,16 +29,18 @@ struct OffsetUnitRange{T,P<:AbstractUnitRange{<:Integer},Q<:AbstractUnitRange{T}
     vals::Q
 end
 
+_OffsetUnitRange(inds::AbstractUnitRange, vals::AbstractUnitRange) = OffsetUnitRange(values(inds), values(vals))
+
 function OffsetUnitRange(inds::AbstractUnitRange{<:Integer}, start::Integer)
     stop = start+(length(inds)-1)
-    OffsetUnitRange(inds, start:stop)
+    _OffsetUnitRange(inds, start:stop)
 end
 
-OffsetUnitRange(inds::AbstractUnitRange{<:Integer}) = OffsetUnitRange(inds, OneTo(length(inds)))
+OffsetUnitRange(inds::AbstractUnitRange{<:Integer}) = _OffsetUnitRange(inds, OneTo(length(inds)))
 
 const OffsetRange{T} = Union{OffsetStepRange{T},OffsetUnitRange{T}}
 
-(::Type{O})(start::Integer, r::OrdinalRange) where O <: OffsetRange = O(start:start+length(r)-1, r)
+(::Type{O})(start::Integer, r::OrdinalRange) where O <: OffsetRange = O(start:start+length(r)-1, values(r))
 
 (::Type{O})(r::OffsetRange) where O <: OffsetRange = O(r.inds, r.vals)
 
@@ -64,14 +68,14 @@ end
 
 @inline function getindex(r::OrdinalRange, s::OffsetRange{<:Integer})
     @boundscheck checkbounds(r, s)
-    @inbounds OffsetStepRange(values(axes(s, 1)), r[first(s)], step(r)*step(s))
+    @inbounds OffsetStepRange(axes(s, 1), r[first(s)], step(r)*step(s))
 end
 
 # @inline function getindex(r::AbstractUnitRange, s::AbstractUnitRange{<:Integer})
 # TODO: for AbstractUnitRange this is already defined in range.jl
 @inline function getindex(r::AbstractUnitRange, s::OffsetUnitRange{<:Integer})
     @boundscheck checkbounds(r, s)
-    @inbounds OffsetUnitRange(values(axes(s, 1)), r[first(s)])
+    @inbounds OffsetUnitRange(axes(s, 1), r[first(s)])
 end
 
 # support for IdentityUnitRange and Slice
@@ -82,12 +86,12 @@ values(r::Slice) = values(r.indices)
 
 @inline function getindex(r::OffsetUnitRange, s::IdentityUnitRange)
     @boundscheck checkbounds(r, s)
-    @inbounds OffsetUnitRange(values(s), r[first(s)])
+    @inbounds OffsetUnitRange(s, r[first(s)])
 end
 
 @inline function getindex(r::OffsetStepRange, s::IdentityUnitRange)
     @boundscheck checkbounds(r, s)
-    @inbounds OffsetUnitRange(values(s), r[first(s)], step(r))
+    @inbounds OffsetUnitRange(s, r[first(s)], step(r))
 end
 
 @propagate_inbounds getindex(r::OffsetRange, s::Slice) = r[axes(s, 1)]
@@ -109,10 +113,10 @@ unsafe_fast_subarray(a::AbstractArray) = a
 function oa_range(r, s::AbstractUnitRange{<:Integer})
     length(r) == length(s) || argerror("existing axis $r and new range $s have different lengths")
     # r isa OneTo && s isa OneTo ? Colon() : OffsetUnitRange(s, r)
-    OffsetUnitRange(s, r)
+    _OffsetUnitRange(s, r)
 end
 
-oa_range(r, n::Integer) = OffsetUnitRange(n, values(r))
+oa_range(r, n::Integer) = OffsetUnitRange(n, r)
 oa_range(r, ::Colon) = Colon()
 oa_range(r, ::T) where T = argerror("$T not supported to specify an axis")
 
@@ -168,13 +172,13 @@ end
 # from1
 
 from1(a::AbstractArray) = _from1(a, axes(a)...)
-from1(r::OffsetRange) = from1(values(r))   # or just values(r) ?
+from1(r::OffsetRange) = values(r)
 
 _from1(a, ::OneTo...) = a
 _from1(a, rs...) =  offsetarray(a, map(range1, rs)...)
 
 range1(r::OneTo) = Colon()
-range1(r::AbstractUnitRange) = OffsetUnitRange(OneTo(length(r)), r)
+range1(r::AbstractUnitRange) = _OffsetUnitRange(OneTo(length(r)), r)
 
 # OffsetArrays
 
