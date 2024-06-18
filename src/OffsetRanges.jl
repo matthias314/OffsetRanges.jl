@@ -178,7 +178,7 @@ _from1(a, ::OneTo...) = a
 _from1(a, rs...) =  offsetarray(a, map(range1, rs)...)
 
 range1(r::OneTo) = Colon()
-range1(r::AbstractUnitRange) = _OffsetUnitRange(OneTo(length(r)), r)
+range1(r::AbstractUnitRange) = OneTo(length(r))
 
 # OffsetArrays
 
