@@ -2,7 +2,7 @@ module OffsetRanges
 
 export OffsetStepRange, OffsetUnitRange, offsetarray, from1
 
-using Base: Fix1, OneTo
+using Base: @propagate_inbounds, Fix1, OneTo, IdentityUnitRange, Slice
 import Base: show, axes, step, length, step, first, last, getindex, isempty, values,
     similar, fill
 
@@ -43,7 +43,7 @@ const OffsetRange{T} = Union{OffsetStepRange{T},OffsetUnitRange{T}}
 show(io::IO, r::OffsetRange) = print(io, r.inds => values(r))
 
 # axes(r::OffsetRange) = (first(r.inds):last(r.inds),)
-axes(r::OffsetRange) = (r.inds,)   # assumes that r.inds is 1-based
+axes(r::OffsetRange) = (IdentityUnitRange(r.inds),)
 
 values(r::OffsetRange) = r.vals
 
@@ -64,15 +64,33 @@ end
 
 @inline function getindex(r::OrdinalRange, s::OffsetRange{<:Integer})
     @boundscheck checkbounds(r, s)
-    @inbounds OffsetStepRange(axes(s, 1), r[first(s)], step(r)*step(s))
+    @inbounds OffsetStepRange(values(axes(s, 1)), r[first(s)], step(r)*step(s))
 end
 
 # @inline function getindex(r::AbstractUnitRange, s::AbstractUnitRange{<:Integer})
 # TODO: for AbstractUnitRange this is already defined in range.jl
 @inline function getindex(r::AbstractUnitRange, s::OffsetUnitRange{<:Integer})
     @boundscheck checkbounds(r, s)
-    @inbounds OffsetUnitRange(axes(s, 1), r[first(s)])
+    @inbounds OffsetUnitRange(values(axes(s, 1)), r[first(s)])
 end
+
+# support for IdentityUnitRange and Slice
+
+values(r::AbstractRange) = r
+values(r::IdentityUnitRange) = values(r.indices)
+values(r::Slice) = values(r.indices)
+
+@inline function getindex(r::OffsetUnitRange, s::IdentityUnitRange)
+    @boundscheck checkbounds(r, s)
+    @inbounds OffsetUnitRange(values(s), r[first(s)])
+end
+
+@inline function getindex(r::OffsetStepRange, s::IdentityUnitRange)
+    @boundscheck checkbounds(r, s)
+    @inbounds OffsetUnitRange(values(s), r[first(s)], step(r))
+end
+
+@propagate_inbounds getindex(r::OffsetRange, s::Slice) = r[axes(s, 1)]
 
 # OffsetArray
 
@@ -94,7 +112,7 @@ function oa_range(r, s::AbstractUnitRange{<:Integer})
     OffsetUnitRange(s, r)
 end
 
-oa_range(r, n::Integer) = OffsetUnitRange(n, r)
+oa_range(r, n::Integer) = OffsetUnitRange(n, values(r))
 oa_range(r, ::Colon) = Colon()
 oa_range(r, ::T) where T = argerror("$T not supported to specify an axis")
 
