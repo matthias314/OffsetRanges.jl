@@ -124,9 +124,9 @@ julia> offsetarray(Int8, 2:3, -1:1)
  -93  102  127
 ```
 
-### `similar` and `fill`
+### `similar`, `fill` and `reshape`
 
-The funtions `similar` and `fill` work with offset arrays and accept ranges as arguments:
+The funtions `similar`, `fill` and `reshape` work with offset arrays and accept ranges as arguments:
 ```
 julia> a = Int8[1 2 3; 4 5 6];
 
@@ -149,6 +149,23 @@ julia> fill(2, 8:9, -3:-1)
 2×3 view(::Matrix{Int64}, 8:9 => Base.OneTo(2), -3:-1 => Base.OneTo(3)) with eltype Int64 with indices 8:9×-3:-1:
  2  2  2
  2  2  2
+
+julia> b = reshape(1:6, 0:1, 4:6)
+2×3 OffsetArray(reshape(::UnitRange{Int64}, 2, 3), 0:1, 4:6) with eltype Int64 with indices 0:1×4:6:
+ 1  3  5
+ 2  4  6
+
+julia> reshape(b, 3, 2)
+3×2 reshape(::UnitRange{Int64}, 3, 2) with eltype Int64:
+ 1  4
+ 2  5
+ 3  6
+
+julia> reshape(b, 6:8, :)
+3×2 OffsetArray(reshape(::UnitRange{Int64}, 3, 2), 6:8, 1:2) with eltype Int64 with indices 6:8×1:2:
+ 1  4
+ 2  5
+ 3  6
 ```
 
 ### `from1`

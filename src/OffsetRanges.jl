@@ -4,7 +4,7 @@ export OffsetStepRange, OffsetUnitRange, offsetarray, from1
 
 using Base: @propagate_inbounds, Fix1, OneTo, IdentityUnitRange, Slice
 import Base: show, axes, step, length, step, first, last, getindex, isempty, values,
-    similar, fill
+    similar, fill, reshape
 
 const TupleVararg1{T} = Tuple{T, Vararg{T}}
 
@@ -137,7 +137,7 @@ function offsetarray(::Type{T}, rs::AbstractUnitRange{<:Integer}...) where T
     offsetarray(b, rs...)
 end
 
-# zeros, ones, trues, falses, similar, fill
+# zeros, ones, trues, falses, similar, fill, reshape
 
 for f in [:zeros, :ones]
     @eval function Base.$f(::Type{T}, t::TupleVararg1{AbstractUnitRange{<:Integer}}) where T
@@ -168,6 +168,15 @@ function fill(x, t::TupleVararg1{AbstractUnitRange{<:Integer}})
     b = fill(x, map(length, t))
     offsetarray(b, t...)
 end
+
+function reshape(x::AbstractArray, t::Union{Integer,AbstractUnitRange{<:Integer},Colon}...)
+    b = reshape(x, map(x -> x isa AbstractUnitRange ? length(x) : x, t))
+    offsetarray(b, map(x -> x isa Integer ? Colon() : x, t)...)
+end
+
+# to avoid ambiguities
+reshape(x::AbstractArray, t::Colon...) = reshape(x, t)
+reshape(x::AbstractArray) = reshape(x, ())
 
 # from1
 
